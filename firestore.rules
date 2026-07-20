@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userProfile() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function isTeacher() {
+      return signedIn()
+        && userProfile().data.rol in ['docente', 'profesor'];
+    }
+
+    function isStudentAssignedToClass() {
+      return signedIn()
+        && userProfile().data.rol == 'estudiante'
+        && userProfile().data.curso in resource.data.courses;
+    }
+
+    match /usuarios/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isTeacher());
+
+      // La aplicación solo crea automáticamente perfiles de estudiante.
+      // Los perfiles docentes deben crearse desde Firebase Console o un entorno administrativo.
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.rol == 'estudiante';
+
+      // El usuario puede actualizar su perfil, pero no cambiar su rol.
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.rol == resource.data.rol;
+
+      allow delete: if false;
+    }
+
+    match /clases/{classId} {
+      // Cada estudiante solo puede consultar las clases asignadas a su curso.
+      // El curso se registra en usuarios/{UID} al iniciar sesión.
+      allow read: if isTeacher() || isStudentAssignedToClass();
+
+      allow create: if isTeacher()
+        && request.resource.data.creadoPor == request.auth.uid;
+
+      allow update, delete: if isTeacher()
+        && resource.data.creadoPor == request.auth.uid;
+    }
+
+    match /exitTickets/{ticketId} {
+      allow create: if signedIn()
+        && !isTeacher()
+        && request.resource.data.studentUid == request.auth.uid;
+
+      allow read: if signedIn()
+        && (isTeacher() || resource.data.studentUid == request.auth.uid);
+
+      allow update: if false;
+      allow delete: if isTeacher();
+    }
+
+    match /evaluaciones/{evaluationId} {
+      // Las evaluaciones se muestran solo a los estudiantes de los cursos asignados.
+      allow read: if isTeacher() || isStudentAssignedToClass();
+
+      allow create: if isTeacher()
+        && request.resource.data.teacherUid == request.auth.uid;
+
+      allow update, delete: if isTeacher()
+        && resource.data.teacherUid == request.auth.uid;
+    }
+
+    match /respuestasEvaluaciones/{responseId} {
+      allow create: if signedIn()
+        && !isTeacher()
+        && request.resource.data.studentUid == request.auth.uid;
+
+      allow read: if signedIn()
+        && (resource.data.studentUid == request.auth.uid
+          || (isTeacher() && resource.data.teacherUid == request.auth.uid));
+
+      allow update, delete: if false;
+    }
+
+    match /planificaciones/{planningId} {
+      allow create: if isTeacher()
+        && request.resource.data.creadoPor == request.auth.uid;
+
+      allow read, update, delete: if isTeacher()
+        && resource.data.creadoPor == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,42 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isTeacher() {
+      return signedIn()
+        && firestore.get(/databases/(default)/documents/usuarios/$(request.auth.uid)).data.rol in ['docente', 'profesor'];
+    }
+
+    match /clases/{userId}/{fileName} {
+      allow read: if signedIn();
+
+      allow create, update: if isTeacher()
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType == 'text/html';
+
+      allow delete: if isTeacher() && request.auth.uid == userId;
+    }
+
+    // Archivos de referencia exportados desde asistentes de IA.
+    match /planificaciones/{userId}/{fileName} {
+      allow read: if isTeacher() && request.auth.uid == userId;
+
+      allow create, update: if isTeacher()
+        && request.auth.uid == userId
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType in [
+          'text/plain', 'text/markdown', 'text/html', 'application/json'
+        ];
+
+      allow delete: if isTeacher() && request.auth.uid == userId;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

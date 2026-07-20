@@ -1,0 +1,126 @@
+EDUPORTAL - CONFIGURACIÓN DE FIREBASE
+=====================================
+
+ARCHIVO PRINCIPAL
+-----------------
+Abre portal_docente_firebase.html mediante un servidor web. No se recomienda abrirlo haciendo doble clic como file://.
+
+Una forma sencilla de probarlo en Windows, si tienes Python instalado:
+
+1. Coloca los archivos en una carpeta.
+2. Abre CMD o PowerShell dentro de esa carpeta.
+3. Ejecuta:
+
+   python -m http.server 8000
+
+4. Abre en Chrome:
+
+   http://localhost:8000/portal_docente_firebase.html
+
+También puedes publicarlo con Firebase Hosting.
+
+1. ACTIVAR AUTHENTICATION
+-------------------------
+1. Abre Firebase Console.
+2. Entra al proyecto plataforma-docente-108d5.
+3. Ve a Authentication > Comenzar.
+4. Abre Método de acceso.
+5. Habilita Correo electrónico/Contraseña.
+6. Para permitir acceso con Google, habilita también Google, selecciona un correo de soporte y guarda los cambios.
+7. En Configuración > Dominios autorizados, agrega el dominio donde publicarás el portal. Para pruebas locales, localhost ya suele estar autorizado.
+
+2. CREAR FIRESTORE
+------------------
+1. Ve a Firestore Database.
+2. Presiona Crear base de datos.
+3. Selecciona una ubicación.
+4. Después abre la pestaña Reglas.
+5. Copia todo el contenido de firestore.rules y publícalo.
+
+3. CREAR STORAGE
+----------------
+1. Ve a Storage.
+2. Presiona Comenzar.
+3. Confirma la ubicación.
+4. Abre la pestaña Reglas.
+5. Copia todo el contenido de storage.rules y publícalo.
+6. Firebase puede pedir autorización para que las reglas de Storage consulten Firestore. Acepta esa autorización.
+7. Las reglas permiten clases HTML de hasta 5 MB y archivos de referencia para planificaciones (TXT, MD, JSON o HTML) de hasta 2 MB.
+
+4. CREAR UNA CUENTA DOCENTE
+---------------------------
+Por seguridad, el portal no convierte automáticamente una cuenta nueva en docente.
+
+1. Ve a Authentication > Usuarios > Agregar usuario.
+2. Crea el correo y la contraseña del docente.
+3. Copia el UID del usuario.
+4. Ve a Firestore Database.
+5. Crea la colección: usuarios
+6. Crea un documento cuyo ID sea exactamente el UID copiado.
+7. Agrega estos campos:
+
+   nombre       texto      Nombre del docente
+   email        texto      Correo del docente
+   rol          texto      docente
+   asignatura   texto      Ejemplo: Inglés
+   creadoEn     timestamp  Fecha actual
+
+5. CREAR CUENTAS DE ESTUDIANTE CON USUARIO Y CLAVE
+---------------------------------------------------
+El portal permite que el alumno escriba un usuario corto, por ejemplo
+estudiante_6, pero Firebase necesita una cuenta de correo/contraseña real.
+
+Para crear la cuenta estudiante_6:
+
+1. Ve a Authentication > Usuarios > Agregar usuario.
+2. Crea esta cuenta exactamente:
+
+   Correo:       estudiante_6@eduportal.test
+   Contraseña:   Abg1234
+
+3. Guarda. No necesitas copiar el UID para esta cuenta.
+4. En el portal el alumno escribe:
+
+   Usuario:      estudiante_6
+   Contraseña:   Abg1234
+
+En su primer acceso, el portal crea automáticamente usuarios/{UID} con rol
+estudiante y curso "6to Básico curso_tst". Por eso verá solamente las clases
+que el docente haya subido y asignado a ese mismo curso.
+
+Puedes crear las otras cuentas del mismo modo:
+
+   estudiante_2@eduportal.test  -> estudiante_2 -> 2do Básico curso_tst
+   estudiante_3@eduportal.test  -> estudiante_3 -> 3ro Básico curso_tst
+   estudiante_4@eduportal.test  -> estudiante_4 -> 4to Básico curso_tst
+   estudiante_5@eduportal.test  -> estudiante_5 -> 5to Básico curso_tst
+   estudiante_6@eduportal.test  -> estudiante_6 -> 6to Básico curso_tst
+   estudiante_7@eduportal.test  -> estudiante_7 -> 7mo Básico curso_tst
+
+Esto también funciona si el estudiante usa el botón "Continuar con Google": antes de abrir Google debe seleccionar Estudiante en el portal. Para cuentas reales del colegio es recomendable crear una cuenta individual por alumno, en vez de compartir una contraseña por curso.
+
+Para docentes que usan Google, crea primero el documento usuarios/{UID} con rol docente. El UID aparece en Authentication > Usuarios después de su primer acceso con Google. Luego podrá volver a iniciar sesión normalmente con Google.
+
+También puedes crear el documento manualmente con:
+
+   nombre   texto   Nombre del estudiante
+   email    texto   Correo del estudiante
+   rol      texto   estudiante
+   curso    texto   3ro Básico A
+
+6. PRUEBAS RECOMENDADAS
+-----------------------
+- Inicia sesión como docente.
+- Sube un archivo .html menor a 5 MB.
+- Recarga la página y comprueba que la clase siga apareciendo.
+- Inicia sesión como estudiante.
+- Selecciona el curso y la asignatura de la clase.
+- Abre la actividad y envía el Exit Ticket.
+- Vuelve a entrar como docente y revisa el panel de Exit Tickets.
+- Guarda una planificación desde Laboratorio IA.
+- Revisa las colecciones clases, exitTickets y planificaciones en Firestore.
+
+IMPORTANTE
+----------
+La configuración firebaseConfig identifica el proyecto, pero la protección real depende de Authentication y de las reglas de Firestore y Storage.
+Prueba las reglas antes de utilizar datos reales de estudiantes.
